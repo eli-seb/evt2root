@@ -77,8 +77,9 @@ void evt2root::unpack(uint16_t* eventPointer) {
   uint16_t* iterPointer = eventPointer;
   uint32_t numWords = *iterPointer++;
   uint16_t* end =  eventPointer + numWords+1;
-  vector<ParsedmTDCEvent> mtdcData;
+  //vector<ParsedmTDCEvent> tdcData;
   vector<ParsedADCEvent> adcData;
+  // vector<ParsedADCEvent> tdcData;
   vector<ParsedmQDCEvent> qdcData;
 
   Reset(); // Wipe Variables
@@ -183,17 +184,31 @@ void evt2root::unpack(uint16_t* eventPointer) {
 // The order of event matters
   for (auto& event : adcData) {
     for (auto& chanData : event.s_data) {
-      if (event.s_geo == adc1_geo) adc1[chanData.first] = chanData.second;
-      if (event.s_geo == adc2_geo) adc2[chanData.first] = chanData.second;
-      if (event.s_geo == adc3_geo) adc3[chanData.first] = chanData.second;
-      if (event.s_geo == adc4_geo) adc4[chanData.first] = chanData.second;
-      if (event.s_geo == adc5_geo) adc5[chanData.first] = chanData.second;
-
-      if (event.s_geo == tdc1_geo) tdc1[chanData.first] = chanData.second;
-      if (event.s_geo == tdc2_geo) tdc2[chanData.first] = chanData.second;
+      if (event.s_geo == adc1_geo){
+	adc1[chanData.first] = chanData.second;
+      }
+      if (event.s_geo == adc2_geo) {
+	adc2[chanData.first] = chanData.second;
+      }
+      if (event.s_geo == adc3_geo){
+	adc3[chanData.first] = chanData.second;
+      }
+      if (event.s_geo == adc4_geo){
+	adc4[chanData.first] = chanData.second;
+      }
+      if (event.s_geo == adc5_geo){
+	adc5[chanData.first] = chanData.second;
+      }
+      if (event.s_geo == tdc1_geo){
+	tdc1[chanData.first] = chanData.second;
+      }
+      if (event.s_geo == tdc2_geo){
+	tdc2[chanData.first] = chanData.second;
+      } 
+      //cout <<"adc1[16]=" << adc1[16] << endl;
     }
   }
-  
+  /*
   for(auto& event : qdcData) {
     for(auto& chanData : event.s_data) {
       //tdc1[chanData.first] = chanData.second;
@@ -202,15 +217,22 @@ void evt2root::unpack(uint16_t* eventPointer) {
       qdc3[chanData.first] = chanData.second;
     }
   }
-  /*
+  */
  for (auto& event : qdcData) {
     for (auto& chanData : event.s_data) {
-      if (event.s_id == qdc1_geo) qdc1[chanData.first] = chanData.second;
-      if (event.s_id == qdc2_geo) qdc2[chanData.first] = chanData.second;
-      if (event.s_id == qdc3_geo) qdc3[chanData.first] = chanData.second;
+      if (event.s_id == qdc1_geo){
+	qdc1[chanData.first] = chanData.second;
+      }
+      if (event.s_id == qdc2_geo){
+	qdc2[chanData.first] = chanData.second;
+      }
+      if (event.s_id == qdc3_geo){
+	qdc3[chanData.first] = chanData.second;
+      }
+      //cout <<"qdc3[2]=" << qdc3[2] << endl;
     }
  }
-  */
+  
   setParameters();
   DataTree->Fill();
 }
