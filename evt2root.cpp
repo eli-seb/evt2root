@@ -76,7 +76,7 @@ void evt2root::unpack(uint16_t* eventPointer) {
 
   uint16_t* iterPointer = eventPointer;
   uint32_t numWords = *iterPointer++;
-  uint16_t* end =  eventPointer + numWords+1;
+  uint16_t* end =  eventPointer+numWords+1;
   //vector<ParsedmTDCEvent> tdcData;
   vector<ParsedADCEvent> adcData;
   // vector<ParsedADCEvent> tdcData;
@@ -138,8 +138,8 @@ void evt2root::unpack(uint16_t* eventPointer) {
   }
   if (iterPointer<end) {
     auto tdc =  adc_unpacker.parse(iterPointer, end, tdc1_geo);
-    adcData.push_back(tdc.second);
-    iterPointer = tdc.first;
+    adcData.push_back(adc.second);
+    iterPointer = adc.first;
   }
   //tdc2
   while (iterPointer<end && *iterPointer == 0xffff){
@@ -147,8 +147,8 @@ void evt2root::unpack(uint16_t* eventPointer) {
   }
   if (iterPointer<end) {
     auto tdc = adc_unpacker.parse(iterPointer, end, tdc2_geo);
-    adcData.push_back(tdc.second);
-    iterPointer = tdc.first;
+    adcData.push_back(adc.second);
+    iterPointer = adc.first;
   }
 
 // Unpacking QDC's using mqdc_unpacker
