@@ -27,7 +27,7 @@ struct ParsedmQDCEvent {
 
 class mQDCUnpacker {
   public:
-    std::pair< uint16_t*, ParsedmQDCEvent> parse( uint16_t* begin,  uint16_t* end, int id);
+    std::pair< uint16_t*, ParsedmQDCEvent> parse( uint16_t* begin,  uint16_t* end, std::vector<int> ids);
     bool isHeader(std::uint16_t word);
 
   private:

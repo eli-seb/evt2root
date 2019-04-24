@@ -31,7 +31,7 @@ struct ParsedADCEvent {
 
 class ADCUnpacker {
   public:
-    std::pair< uint16_t*, ParsedADCEvent> parse( uint16_t* begin,  uint16_t* end, int geo);
+    std::pair< uint16_t*, ParsedADCEvent> parse( uint16_t* begin,  uint16_t* end, std::vector<int> geo);
     bool isHeader(std::uint16_t word);
 
   private:

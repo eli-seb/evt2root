@@ -15,7 +15,7 @@ NOTE: This version is specifically designed to unpack data that come in reverse!
 #include "ADCUnpacker.h"
 #include <string>
 #include <iostream>
-
+#include <stdexcept>
 using namespace std;
 
 //This is where most chagnes need to be made for each module; most else is just name changes
@@ -40,10 +40,11 @@ static const uint16_t DATA_CHANMASK (0x001f);
 static const uint16_t DATA_CONVMASK (0x3fff);
 
 
-pair< uint16_t*, ParsedADCEvent> ADCUnpacker::parse( uint16_t* begin,  uint16_t* end, int geo) {
+pair< uint16_t*, ParsedADCEvent> ADCUnpacker::parse( uint16_t* begin,  uint16_t* end, vector<int> geos) {
 
   ParsedADCEvent event;
-  int bad_flag;
+  int bad_flag = 0;
+  int geo_flag = 0;
 
   auto iter = begin;
 
@@ -54,11 +55,17 @@ pair< uint16_t*, ParsedADCEvent> ADCUnpacker::parse( uint16_t* begin,  uint16_t*
   iter+=2;
   int nWords = event.s_count*2;
   auto dataEnd = iter + nWords;
-  if ( event.s_geo != geo){//If unexpected geo, skip all data words; either bad event or bad stack
+  for (unsigned int i=0; i<geos.size(); i++) {
+    if(event.s_geo == geos[i]) {
+      geo_flag = 1;
+      break;
+    }
+  }
+  if (!geo_flag){//If unexpected geo, skip all data words; either bad event or bad stack
     bad_flag = 1;
     iter+=nWords;
     //Error testing
-    //cout<<"Bad ADC geo: "<<event.s_geo<<" Expected: "<<geo<<endl;  
+    //cout<<"Bad ADC geo: "<<event.s_geo<<endl;  
   } else {
     iter = unpackData(iter, dataEnd, event);
   }
@@ -81,18 +88,31 @@ bool ADCUnpacker::isHeader(uint16_t word) {
 
 void ADCUnpacker::unpackHeader(uint16_t* word, ParsedADCEvent& event) {
 
-  //Error testing  
-  /*if (!isHeader(*(word+1))) {
-    cout<<"ADCUnpacker::parseHeader() ";
-    cout<<"Found non-header word when expecting header. ";
-    cout<<"Word = ";
-    cout<<word<<endl;
-  }*/
+  //Error handling: if not valid header, throw 0 in chan 0 for invalid geo 
+  try {  
+    if (!isHeader(*(word+1))) {
+      string errmsg("ADCUnpacker::parseHeader() ");
+      errmsg += "Found non-header word when expecting header. ";
+      errmsg += "Word = ";
+      unsigned short w = *(word+1);
+      errmsg += to_string(w);
+      throw errmsg;
+    }
 
-  event.s_count = (*word&HDR_COUNT_MASK) >> HDR_COUNT_SHIFT;
-  ++word;
-  event.s_geo = (*word&GEO_MASK)>>GEO_SHIFT;
-  event.s_crate = (*word&HDR_CRATE_MASK) >> HDR_CRATE_SHIFT;
+    event.s_count = (*word&HDR_COUNT_MASK) >> HDR_COUNT_SHIFT;
+    ++word;
+    event.s_geo = (*word&GEO_MASK)>>GEO_SHIFT;
+    event.s_crate = (*word&HDR_CRATE_MASK) >> HDR_CRATE_SHIFT;
+  } catch (string errmsg) {
+    event.s_count = 0;
+    event.s_geo = 99; //should NEVER match a valid geo
+    event.s_crate = 0;
+    uint16_t data = 0;
+    int channel = 0;
+    auto chanData = make_pair(channel, data);
+    event.s_data.push_back(chanData);
+    //cout<<errmsg<<endl; //only turn on when testing
+  }
 
 }
 
@@ -102,18 +122,28 @@ bool ADCUnpacker::isData(uint16_t word) {
 
 void ADCUnpacker::unpackDatum(uint16_t* word, ParsedADCEvent& event) {
   
-  //Error testing
-  /*if (!isData(*(word+1))) {
-    cout<<"ADCUnpacker::unpackDatum() ";
-    cout<<"Found non-data word when expecting data: "<<*(word+1)<<endl;
-  }*/
+  //Error handling: if not valid data throw 0 in chan 0, make geo invalid 
+  try {
+    if (!isData(*(word+1))) {
+      string errmsg ("ADCUnpacker::unpackDatum() ");
+      errmsg += "Found non-data word when expecting data.";
+      throw errmsg;
+    }
 
-  uint16_t data = *word&DATA_CONVMASK;
-  ++word;
-  int channel = (*word&DATA_CHANMASK) >> DATA_CHANSHIFT;
+    uint16_t data = *word&DATA_CONVMASK;
+    ++word;
+    int channel = (*word&DATA_CHANMASK) >> DATA_CHANSHIFT;
 
-  auto chanData = make_pair(channel, data);
-  event.s_data.push_back(chanData);
+    auto chanData = make_pair(channel, data);
+    event.s_data.push_back(chanData);
+  } catch (string errmsg) {
+    uint16_t data = 0;
+    uint16_t channel = 0;
+    auto chanData = make_pair(channel, data);
+    event.s_data.push_back(chanData);
+    event.s_geo = 99; //should NEVER match valid geo
+    //cout<<errmsg<<endl; //only turn on for error testing
+  }
   
 }
 
@@ -123,11 +153,8 @@ void ADCUnpacker::unpackDatum(uint16_t* word, ParsedADCEvent& event) {
 
   auto iter = begin;
   while (iter!=end) {
-    if (*iter == 0xffff) iter += 2;
-    else {
-      unpackDatum(iter, event);
-      iter = iter+2;
-    }
+    unpackDatum(iter, event);
+    iter = iter+2;
   }
 
   return iter;

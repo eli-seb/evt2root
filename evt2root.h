@@ -25,6 +25,7 @@ class evt2root {
 
   public:
     evt2root();
+    ~evt2root();
     int run();
  
   private:
@@ -35,42 +36,22 @@ class evt2root {
     const int BufferBytes = BufferWords*2;
     static const int BufferLength = 26656; //the same value as buffer bytes?
     char buffer[BufferLength];
-    Float_t nanos_per_chan = 0.0625; //ps->ns conv. for mtdc
     string fileName;
     TFile *rootFile;
     TTree *DataTree;
 
     //ROOT branch parameters
-    Int_t adc1[32];
-    Int_t adc2[32];
-    Int_t adc3[32];
-    Int_t adc4[32];
-    Int_t adc5[32];
-
-    Int_t tdc1[32];
-    Int_t tdc2[32];
-
-    Int_t qdc1[32];
-    Int_t qdc2[32];
-    Int_t qdc3[32];
+    vector<Int_t> adc1, adc2, adc3, adc4, adc5,
+                  tdc1, tdc2, qdc1, qdc2, qdc3;
  
     //geoaddresses
-    int adc1_geo;
-    int adc2_geo;
-    int adc3_geo;
-    int adc4_geo;
-    int adc5_geo;
+    int adc1_geo, adc2_geo, adc3_geo, adc4_geo, adc5_geo,
+        tdc1_geo, tdc2_geo, qdc1_geo, qdc2_geo, qdc3_geo;
 
-    int tdc1_geo;
-    int tdc2_geo;
-
-    int qdc1_geo;
-    int qdc2_geo;
-    int qdc3_geo;
+    vector<int> adc_geos, qdc_geos;
   
     //module unpackers
     ADCUnpacker adc_unpacker;
-    mTDCUnpacker mtdc_unpacker;
     mQDCUnpacker mqdc_unpacker;
 };
 

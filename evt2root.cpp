@@ -24,20 +24,40 @@ using namespace std;
 evt2root::evt2root() {
 
   cout << "Enter evt list file: ";
-  cin >> fileName;
+  cin >> fileName;   
+
+  adc1.resize(32); adc2.resize(32); adc3.resize(32); adc4.resize(32); adc5.resize(32);
+  tdc1.resize(32); tdc2.resize(32); qdc1.resize(32); qdc2.resize(32); qdc3.resize(32);
+
   adc1_geo = 4; // Set geo addresses here 
+  adc_geos.push_back(adc1_geo);
   adc2_geo = 5; // You can find these in daqconfig.tcl
+  adc_geos.push_back(adc2_geo);
   adc3_geo = 7;
+  adc_geos.push_back(adc3_geo);
   adc4_geo = 8;
+  adc_geos.push_back(adc4_geo);
   adc5_geo = 12;
+  adc_geos.push_back(adc5_geo);
   
   tdc1_geo = 14;
+  adc_geos.push_back(tdc1_geo);
   tdc2_geo = 15;
+  adc_geos.push_back(tdc2_geo);
   
   qdc1_geo = 3;
+  qdc_geos.push_back(qdc1_geo);
   qdc2_geo = 10;
+  qdc_geos.push_back(qdc2_geo);
   qdc3_geo = 17;
+  qdc_geos.push_back(qdc3_geo);
 
+}
+
+//Destructor
+evt2root::~evt2root() {
+  delete rootFile;
+  delete DataTree;
 }
 
 // Reset()
@@ -69,169 +89,52 @@ void evt2root::setParameters() {
 
 // unpack()
 // This is where the file is actually parsed. Takes a short pointer and traverses the .evt file, 
-// calling each of the necessary modules as they are listed in the stack order. Current verison
-// requires knowledge of the stack order; possible area of improvement.
+// seaching for header buffers that match the modules. Once a valid header is found, the module
+// unpacker is called. The end data is then sorted into the indivually addressed modules of a 
+// given type. No knowledge of the stack order is necessary to unpack 
  
 void evt2root::unpack(uint16_t* eventPointer) {
 
   uint16_t* iterPointer = eventPointer;
   uint32_t numWords = *iterPointer++;
   uint16_t* end =  eventPointer + numWords+1;
-  //vector<ParsedmTDCEvent> tdcData;
   vector<ParsedADCEvent> adcData;
-  // vector<ParsedADCEvent> tdcData;
   vector<ParsedmQDCEvent> qdcData;
 
   Reset(); // Wipe Variables
 
- // Unpacking ACD's
-  // adc1
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto adc =  adc_unpacker.parse(iterPointer, end, adc1_geo);
-    adcData.push_back(adc.second);
-    iterPointer = adc.first;
-  }
-  // adc2
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto adc =  adc_unpacker.parse(iterPointer, end, adc2_geo);
-    adcData.push_back(adc.second);
-    iterPointer = adc.first;
-  }
-  // adc3
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto adc =  adc_unpacker.parse(iterPointer, end, adc3_geo);
-    adcData.push_back(adc.second);
-    iterPointer = adc.first;
-  }
-  // adc4
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto adc =  adc_unpacker.parse(iterPointer, end, adc4_geo);
-    adcData.push_back(adc.second);
-    iterPointer = adc.first;
-  }
-  // adc5
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto adc =  adc_unpacker.parse(iterPointer, end, adc5_geo);
-    adcData.push_back(adc.second);
-    iterPointer = adc.first;
+  while (iterPointer<end){
+    //check to make sure it matches a header
+    if (adc_unpacker.isHeader(*iterPointer) && *(iterPointer-1) != 0xffff) {
+      auto adc = adc_unpacker.parse(iterPointer-1, end, adc_geos);
+      adcData.push_back(adc.second);
+      iterPointer = adc.first;
+    } else if (mqdc_unpacker.isHeader(*iterPointer)) {
+      auto mqdc = mqdc_unpacker.parse(iterPointer-1, end, qdc_geos);
+      qdcData.push_back(mqdc.second);
+      iterPointer = mqdc.first;
+    } else iterPointer++;
   }
 
-// Unpacking TDC's using adc_unpacker
-  //tdc1
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto tdc =  adc_unpacker.parse(iterPointer, end, tdc1_geo);
-    adcData.push_back(tdc.second);
-    iterPointer = tdc.first;
-  }
-  //tdc2
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto tdc = adc_unpacker.parse(iterPointer, end, tdc2_geo);
-    adcData.push_back(tdc.second);
-    iterPointer = tdc.first;
-  }
-
-// Unpacking QDC's using mqdc_unpacker
-  //qdc1
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto qdc = mqdc_unpacker.parse(iterPointer, end, qdc1_geo);
-    qdcData.push_back(qdc.second);
-    iterPointer = qdc.first;
-  }
-  //qdc2
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto qdc = mqdc_unpacker.parse(iterPointer, end, qdc2_geo);
-    qdcData.push_back(qdc.second);
-    iterPointer = qdc.first;
-  }
-  //qdc3
-    while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto qdc = mqdc_unpacker.parse(iterPointer, end, qdc3_geo);
-    qdcData.push_back(qdc.second);
-    iterPointer = qdc.first;
-  }
-
-// See daqconfig.tcl for stack config event
-// The order of event matters
+  // See daqconfig.tcl for stack config event
   for (auto& event : adcData) {
     for (auto& chanData : event.s_data) {
-      if (event.s_geo == adc1_geo){
-	adc1[chanData.first] = chanData.second;
-      }
-      if (event.s_geo == adc2_geo) {
-	adc2[chanData.first] = chanData.second;
-      }
-      if (event.s_geo == adc3_geo){
-	adc3[chanData.first] = chanData.second;
-      }
-      if (event.s_geo == adc4_geo){
-	adc4[chanData.first] = chanData.second;
-      }
-      if (event.s_geo == adc5_geo){
-	adc5[chanData.first] = chanData.second;
-      }
-      if (event.s_geo == tdc1_geo){
-	tdc1[chanData.first] = chanData.second;
-      }
-      if (event.s_geo == tdc2_geo){
-	tdc2[chanData.first] = chanData.second;
-      } 
-      //cout <<"adc1[16]=" << adc1[16] << endl;
+      if (event.s_geo == adc1_geo) adc1[chanData.first] = chanData.second;
+      else if (event.s_geo == adc2_geo) adc2[chanData.first] = chanData.second;
+      else if (event.s_geo == adc3_geo) adc3[chanData.first] = chanData.second;
+      else if (event.s_geo == adc4_geo) adc4[chanData.first] = chanData.second;
+      else if (event.s_geo == adc5_geo) adc5[chanData.first] = chanData.second;
+      else if (event.s_geo == tdc1_geo) tdc1[chanData.first] = chanData.second;
+      else if (event.s_geo == tdc2_geo) tdc2[chanData.first] = chanData.second;
     }
   }
-  /*
-  for(auto& event : qdcData) {
-    for(auto& chanData : event.s_data) {
-      //tdc1[chanData.first] = chanData.second;
-      qdc1[chanData.first] = chanData.second;
-      qdc2[chanData.first] = chanData.second;
-      qdc3[chanData.first] = chanData.second;
-    }
-  }
-  */
- for (auto& event : qdcData) {
+  for (auto& event : qdcData) {
     for (auto& chanData : event.s_data) {
-      if (event.s_id == qdc1_geo){
-	qdc1[chanData.first] = chanData.second;
-      }
-      if (event.s_id == qdc2_geo){
-	qdc2[chanData.first] = chanData.second;
-      }
-      if (event.s_id == qdc3_geo){
-	qdc3[chanData.first] = chanData.second;
-      }
-      //cout <<"qdc3[2]=" << qdc3[2] << endl;
+      if (event.s_id == qdc1_geo) qdc1[chanData.first] = chanData.second;
+      else if (event.s_id == qdc2_geo) qdc2[chanData.first] = chanData.second;
+      else if (event.s_id == qdc3_geo) qdc3[chanData.first] = chanData.second;
     }
- }
+  }
   
   setParameters();
   DataTree->Fill();
@@ -263,19 +166,19 @@ int evt2root::run() {
   cout<<"ROOT File: "<<temp<<endl;
     
   //Add branches here
-  DataTree->Branch("adc1", &adc1, "adc1[32]/I");
-  DataTree->Branch("adc2", &adc2, "adc2[32]/I");
-  DataTree->Branch("adc3", &adc3, "adc3[32]/I");
-  DataTree->Branch("adc4", &adc4, "adc4[32]/I");
-  DataTree->Branch("adc5", &adc5, "adc5[32]/I");
+  DataTree->Branch("adc1", &adc1);
+  DataTree->Branch("adc2", &adc2);
+  DataTree->Branch("adc3", &adc3);
+  DataTree->Branch("adc4", &adc4);
+  DataTree->Branch("adc5", &adc5);
   
-  DataTree->Branch("tdc1", &tdc1, "tdc1[32]/I");
-  DataTree->Branch("tdc2", &tdc2, "tdc2[32]/I");
+  DataTree->Branch("tdc1", &tdc1);
+  DataTree->Branch("tdc2", &tdc2);
  
-  DataTree->Branch("qdc1", &qdc1, "qdc1[32]/I");
-  DataTree->Branch("qdc2", &qdc2, "qdc2[32]/I");
-  DataTree->Branch("qdc3", &qdc3, "qdc3[32]/I");
-
+  DataTree->Branch("qdc1", &qdc1);
+  DataTree->Branch("qdc2", &qdc2);
+  DataTree->Branch("qdc3", &qdc3);
+  
   string evtName; 
   evtListFile >> evtName;
 
@@ -299,7 +202,6 @@ int evt2root::run() {
         auto eventPointer = ((uint16_t*)buffer)+6;//where we try to start a phys event
         auto bufferType = *(unsigned int*)(buffer+4);//determine what part of the file we're at
         int runNum;
-
         switch (bufferType) {
           case 30: //Physics event buffer
              unpack(eventPointer);
