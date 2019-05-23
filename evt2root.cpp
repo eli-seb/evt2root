@@ -58,6 +58,7 @@ evt2root::evt2root() {
 evt2root::~evt2root() {
   delete rootFile;
   delete DataTree;
+  delete rand;
 }
 
 // Reset()
@@ -96,7 +97,7 @@ void evt2root::setParameters() {
 void evt2root::unpack(uint16_t* eventPointer) {
 
   uint16_t* iterPointer = eventPointer;
-  uint32_t numWords = *iterPointer++;
+  uint16_t numWords = *iterPointer++;
   uint16_t* end =  eventPointer + numWords+1;
   vector<ParsedADCEvent> adcData;
   vector<ParsedmQDCEvent> qdcData;
@@ -109,8 +110,8 @@ void evt2root::unpack(uint16_t* eventPointer) {
       auto adc = adc_unpacker.parse(iterPointer-1, end, adc_geos);
       adcData.push_back(adc.second);
       iterPointer = adc.first;
-    } else if (mqdc_unpacker.isHeader(*iterPointer)) {
-      auto mqdc = mqdc_unpacker.parse(iterPointer-1, end, qdc_geos);
+    } else if (mqdc_unpacker.isHeader(*iterPointer) && *(iterPointer-1) != 0xffff) {
+      auto mqdc = mqdc_unpacker.parse(iterPointer-1, end, qdc_geos, numWords);
       qdcData.push_back(mqdc.second);
       iterPointer = mqdc.first;
     } else iterPointer++;
@@ -180,35 +181,36 @@ int evt2root::run() {
   DataTree->Branch("qdc3", &qdc3);
   
   string evtName; 
-  evtListFile >> evtName;
 
-  int physBuffers = 0; //can report number of event buffers; consistency check with spectcl
-        
-  while (!evtListFile.eof()) {
+  while (evtListFile >> evtName) {
     ifstream evtFile;
     evtFile.clear(); //make sure that evtFile is always empty before trying a new one
     evtFile.open(evtName.c_str(), ios::binary);
+    int physBuffers = 0; //can report number of event buffers; consistency check with spectcl
     if (evtFile.is_open()) {
       cout<<"evt file: "<<evtName<<endl;
-      while (!evtFile.eof()) {
-        evtFile.read(buffer, 8);//take first 8 characters
-	evtFile.read(buffer+8, *(uint32_t*)buffer-8);//read the remainder
-	uint32_t subheader = *(uint32_t*)(buffer+8); //pull the subheader
-
-        if (subheader>0) {
-          cout <<"Unexpected subheader: " << subheader << endl; //relic from old version
+      char buffer[8];
+      while (evtFile.read(buffer, 8)) {
+        uint32_t ringSize = *(uint32_t*)buffer - 8; //first buffer contains size of ring
+        char ringBuffer[ringSize];
+	evtFile.read(ringBuffer, ringSize);//pull a ringBuffer to read
+	uint32_t bodyheader_size = *(uint32_t*)ringBuffer; //pull the bodyheader size 
+        uint16_t *eventPointer;
+        if (bodyheader_size != 0) {
+          eventPointer = ((uint16_t*)ringBuffer)+bodyheader_size/2;//start point if bodyhead
+        } else {
+          eventPointer = ((uint16_t*)ringBuffer)+2;//otherwise just skip bodyhead_size
         }
-
-        auto eventPointer = ((uint16_t*)buffer)+6;//where we try to start a phys event
-        auto bufferType = *(unsigned int*)(buffer+4);//determine what part of the file we're at
+        auto bufferType = *(unsigned int*)(buffer+4);//determine what type of ring
         int runNum;
         switch (bufferType) {
           case 30: //Physics event buffer
              unpack(eventPointer);
              physBuffers++;
+             cout<<"\rNumber of physics buffers: "<<physBuffers<<flush;
              break;
           case 1: //start of run buffer
-            runNum = *(eventPointer+8);
+            runNum = *(eventPointer);
             cout <<"Run number = "<<runNum<<endl;
             cout <<"Should match with file name: " <<evtName<<endl;
             break;
@@ -219,10 +221,9 @@ int evt2root::run() {
       rootFile->Close();
       return 0;
     }
-    cout<<"Number of physics buffers: "<<physBuffers<<endl;
+    cout<<endl;
     evtFile.close();
     evtFile.clear();
-    evtListFile >> evtName;
   }
   evtListFile.close();
   DataTree->Write();

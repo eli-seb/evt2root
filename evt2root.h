@@ -16,8 +16,8 @@
 #include <vector>
 #include <cstdint>
 #include "ADCUnpacker.h"
-#include "mTDCUnpacker.h"
 #include "mQDCUnpacker.h" 
+#include "TRandom3.h"
 
 using namespace std;
 
@@ -32,13 +32,10 @@ class evt2root {
     void setParameters();
     void unpack(uint16_t* eventPointer);
     void Reset();
-    const int BufferWords = 13328; //Left over from previous version?
-    const int BufferBytes = BufferWords*2;
-    static const int BufferLength = 26656; //the same value as buffer bytes?
-    char buffer[BufferLength];
     string fileName;
     TFile *rootFile;
     TTree *DataTree;
+    TRandom3 *rand;
 
     //ROOT branch parameters
     vector<Int_t> adc1, adc2, adc3, adc4, adc5,

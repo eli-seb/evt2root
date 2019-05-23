@@ -9,7 +9,6 @@ Most of the program's structure borrowed from http://docs.nscl.msu.edu/daq/newsi
 Gordon M.
 Nov 2018
 */
-#define HAVE_HLESS_IOSTREAM  //May not be necessary. Placed here for the sake of #include<Iostream.h> misbehaving
 #include "mQDCUnpacker.h"
 #include <string>
 #include <stdexcept>
@@ -38,7 +37,7 @@ static const unsigned DATA_CHANSHIFT (0);
 static const uint16_t DATA_CHANMASK (0x001f);
 static const uint16_t DATA_CONVMASK (0x0fff);
 
-pair< uint16_t*, ParsedmQDCEvent> mQDCUnpacker::parse( uint16_t* begin,  uint16_t* end, vector<int> ids) {
+pair< uint16_t*, ParsedmQDCEvent> mQDCUnpacker::parse( uint16_t* begin,  uint16_t* end, vector<int> ids, uint16_t numWords) {
 
   ParsedmQDCEvent event;
 
@@ -53,6 +52,17 @@ pair< uint16_t*, ParsedmQDCEvent> mQDCUnpacker::parse( uint16_t* begin,  uint16_
  
 
   int nWords = (event.s_count-1)*2; //count includes the eoe 
+  try {
+    if(nWords> numWords) {
+      string errmsg = "Too many words in the QDC buffer!";
+      errmsg += "Tossing QDC event!";
+      throw errmsg;
+    }
+  } catch (string errmsg) {
+    //cout<<errmsg<<endl; //for testing
+    event.s_id = 99;
+    return make_pair(iter, event);
+  }
   auto dataEnd = iter + nWords;
   for (unsigned int i=0; i<ids.size(); i++) {
     if(event.s_id == ids[i]) {
@@ -62,11 +72,15 @@ pair< uint16_t*, ParsedmQDCEvent> mQDCUnpacker::parse( uint16_t* begin,  uint16_
   }
   if (!id_flag) {//If unexpected id, skip data; either bad event or bad stack
     bad_flag = 1;
-    iter+=nWords;
     //Error testing
     //cout<<"Bad mQDC id: "<<event.s_id<<endl;
   } else {
     iter = unpackData(iter, dataEnd, event);
+  }
+  if(iter>end || bad_flag || !isEOE(*(iter+1))) {
+    //For Error testing...
+    //cout<<"ADCUnpacker::parse() ";
+    //cout<<"Unable to unpack event"<<endl;
   }
   //Jump EOE buffer
   iter +=2;
