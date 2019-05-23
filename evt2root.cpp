@@ -97,20 +97,14 @@ void evt2root::setParameters() {
 void evt2root::unpack(uint16_t* eventPointer) {
 
   uint16_t* iterPointer = eventPointer;
-<<<<<<< HEAD
-  uint16_t numWords = *iterPointer++;
-  uint16_t* end =  eventPointer + numWords+1;
-=======
   uint32_t numWords = *iterPointer++;
   uint16_t* end =  eventPointer+numWords+1;
   //vector<ParsedmTDCEvent> tdcData;
->>>>>>> a55530036cbcb220dbef814ae1e770d2c36c2cf1
   vector<ParsedADCEvent> adcData;
   vector<ParsedmQDCEvent> qdcData;
 
   Reset(); // Wipe Variables
 
-<<<<<<< HEAD
   while (iterPointer<end){
     //check to make sure it matches a header
     if (adc_unpacker.isHeader(*iterPointer) && *(iterPointer-1) != 0xffff) {
@@ -122,102 +116,6 @@ void evt2root::unpack(uint16_t* eventPointer) {
       qdcData.push_back(mqdc.second);
       iterPointer = mqdc.first;
     } else iterPointer++;
-=======
- // Unpacking ACD's
-  // adc1
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto adc =  adc_unpacker.parse(iterPointer, end, adc1_geo);
-    adcData.push_back(adc.second);
-    iterPointer = adc.first;
-  }
-  // adc2
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto adc =  adc_unpacker.parse(iterPointer, end, adc2_geo);
-    adcData.push_back(adc.second);
-    iterPointer = adc.first;
-  }
-  // adc3
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto adc =  adc_unpacker.parse(iterPointer, end, adc3_geo);
-    adcData.push_back(adc.second);
-    iterPointer = adc.first;
-  }
-  // adc4
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto adc =  adc_unpacker.parse(iterPointer, end, adc4_geo);
-    adcData.push_back(adc.second);
-    iterPointer = adc.first;
-  }
-  // adc5
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto adc =  adc_unpacker.parse(iterPointer, end, adc5_geo);
-    adcData.push_back(adc.second);
-    iterPointer = adc.first;
-  }
-
-// Unpacking TDC's using adc_unpacker
-  //tdc1
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto tdc =  adc_unpacker.parse(iterPointer, end, tdc1_geo);
-    adcData.push_back(adc.second);
-    iterPointer = adc.first;
-  }
-  //tdc2
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto tdc = adc_unpacker.parse(iterPointer, end, tdc2_geo);
-    adcData.push_back(adc.second);
-    iterPointer = adc.first;
-  }
-
-// Unpacking QDC's using mqdc_unpacker
-  //qdc1
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto qdc = mqdc_unpacker.parse(iterPointer, end, qdc1_geo);
-    qdcData.push_back(qdc.second);
-    iterPointer = qdc.first;
-  }
-  //qdc2
-  while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto qdc = mqdc_unpacker.parse(iterPointer, end, qdc2_geo);
-    qdcData.push_back(qdc.second);
-    iterPointer = qdc.first;
-  }
-  //qdc3
-    while (iterPointer<end && *iterPointer == 0xffff){
-    iterPointer++;
-  }
-  if (iterPointer<end) {
-    auto qdc = mqdc_unpacker.parse(iterPointer, end, qdc3_geo);
-    qdcData.push_back(qdc.second);
-    iterPointer = qdc.first;
->>>>>>> a55530036cbcb220dbef814ae1e770d2c36c2cf1
   }
 
   // See daqconfig.tcl for stack config event
