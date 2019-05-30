@@ -24,10 +24,13 @@ using namespace std;
 evt2root::evt2root() {
 
   cout << "Enter evt list file: ";
-  cin >> fileName;   
-
+  cin >> fileName;
+   
+  //Initalize vector size
   adc1.resize(32); adc2.resize(32); adc3.resize(32); adc4.resize(32); adc5.resize(32);
   tdc1.resize(32); tdc2.resize(32); qdc1.resize(32); qdc2.resize(32); qdc3.resize(32);
+  neut_min.resize(12); neut_max.resize(12); neut_pos_sum.resize(12); neut_max_min.resize(12);
+  
 
   adc1_geo = 4; // Set geo addresses here 
   adc_geos.push_back(adc1_geo);
@@ -51,6 +54,8 @@ evt2root::evt2root() {
   qdc_geos.push_back(qdc2_geo);
   qdc3_geo = 17;
   qdc_geos.push_back(qdc3_geo);
+
+  rand = new TRandom3();
 
 }
 
@@ -76,30 +81,104 @@ void evt2root::Reset(){
     tdc2[i] = 0;
     qdc1[i] = 0;
     qdc2[i] = 0;
-    qdc3[i] = 0;
+    qdc3[i] = 0;    
+  } 
+  for(int i = 12; i<12;i++){
+    neut_min[i] = 0;
+    neut_max[i] = 0;
+    neut_pos_sum[i] = 0;
+    neut_max_min[i] = 0;
   }
+
 }
 
 // setParameters()
 // Does the heavy lifting of setting all non-raw channel paramters.
 // Copy from Parameters.cpp in SpecTclResoNeut 
 
-void evt2root::setParameters() {
+void evt2root::setParameters() { 
+     
+  int i,j;
+  Int_t tp_max[4];
+  Int_t tp_min[4];
+  //Make Random number for bin uncertainty
+  /*
+  Float_t rand[4];
+  for(i=0;i<4;i++){
+    rand[i] = rand->Rndm();
+  }
+  */
+  // Loop Over Each Detector/Crystal
+  for (i=0;i<12;i++){
+    for (j=0;j<4;j++){
+      if (i<8){
+	if (qdc2[j+4*i]>0 && qdc2[j+4*i]<4000){
+	  tp_max[j] = (Int_t)((Float_t)qdc2[j+4*i]+rand->Rndm());
+	}
+	else{
+	  tp_max[j]=0;
+	}
+      } 
+      else {
+	if (qdc1[j+4*(i-8)]>0 && qdc1[j+4*(i-8)]<4000){
+	  tp_max[j] = (Int_t)((Float_t)qdc1[j+4*(i-8)]+rand->Rndm()); 
+	}
+	else{
+	  tp_max[j]=0;
+	}
+      }
+    }
+     
+    // find segment with minimum & maximum charge 
+    for (j=0;j<4;j++){
+      if (i<8){
+	if (qdc2[j+4*i]>0 && qdc2[j+4*i]<4000){
+	  tp_min[j] = (Int_t)((Float_t)qdc2[j+4*i]+rand->Rndm());
+	}
+	else{
+	  tp_min[j]=0;
+	}
+      } 
+      else {
+	if (qdc1[j+4*(i-8)]>0 && qdc1[j+4*(i-8)]<4000){
+	  tp_min[j] = (Int_t)((Float_t)qdc1[j+4*(i-8)]+rand->Rndm()); 
+	}
+	else{
+	  tp_min[j]=0;
+	}
+      }
+    }
+    neut_pos_sum[i] = 0;
+    neut_max[i] = 0;
+    neut_min[i] = tp_min[0];
+    
+    for (j=0;j<4;j++){
+      neut_pos_sum[i] = neut_pos_sum[i] + tp_max[j];
+      if (tp_max[j]>neut_max[i]){
+	neut_max[i] = tp_max[j];
+      }
+      if (tp_min[j] <= tp_min[0]){
+	neut_min[i] = tp_min[j];
+      }
+    }
+    neut_max_min[i] = neut_max[i] - neut_min[i];
+  }
  
+
 }
 
-// unpack()
-// This is where the file is actually parsed. Takes a short pointer and traverses the .evt file, 
-// seaching for header buffers that match the modules. Once a valid header is found, the module
-// unpacker is called. The end data is then sorted into the indivually addressed modules of a 
-// given type. No knowledge of the stack order is necessary to unpack 
- 
+/*unpack()
+This is where the file is actually parsed. Takes a short pointer and traverses the .evt file, 
+seaching for header buffers that match the modules. Once a valid header is found, the module
+unpacker is called. The end data is then sorted into the indivually addressed modules of a 
+given type. No knowledge of the stack order is necessary to unpack 
+*/ 
 void evt2root::unpack(uint16_t* eventPointer) {
 
   uint16_t* iterPointer = eventPointer;
   uint32_t numWords = *iterPointer++;
   uint16_t* end =  eventPointer+numWords+1;
-  //vector<ParsedmTDCEvent> tdcData;
+  /*vector<ParsedmTDCEvent> tdcData; mTDC & mQDC use save event upacker */
   vector<ParsedADCEvent> adcData;
   vector<ParsedmQDCEvent> qdcData;
 
@@ -180,6 +259,11 @@ int evt2root::run() {
   DataTree->Branch("qdc1", &qdc1);
   DataTree->Branch("qdc2", &qdc2);
   DataTree->Branch("qdc3", &qdc3);
+
+  DataTree->Branch("neut_max", &neut_max);
+  DataTree->Branch("neut_min", &neut_min);
+  DataTree->Branch("neut_max_min", &neut_max_min);
+  DataTree->Branch("neut_pos_sum", &neut_pos_sum);
   
   string evtName; 
 
