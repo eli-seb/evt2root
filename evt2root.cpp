@@ -30,7 +30,7 @@ evt2root::evt2root() {
   adc1.resize(32); adc2.resize(32); adc3.resize(32); adc4.resize(32); adc5.resize(32);
   tdc1.resize(32); tdc2.resize(32); qdc1.resize(32); qdc2.resize(32); qdc3.resize(32);
   neut_min.resize(12); neut_max.resize(12); neut_pos_sum.resize(12); neut_max_min.resize(12);
-  
+  tdc2_diff.resize(12);
 
   adc1_geo = 4; // Set geo addresses here 
   adc_geos.push_back(adc1_geo);
@@ -81,14 +81,18 @@ void evt2root::Reset(){
     tdc2[i] = 0;
     qdc1[i] = 0;
     qdc2[i] = 0;
-    qdc3[i] = 0;    
+    qdc3[i] = 0;   
   } 
   for(int i = 12; i<12;i++){
     neut_min[i] = 0;
     neut_max[i] = 0;
     neut_pos_sum[i] = 0;
     neut_max_min[i] = 0;
+    tdc2_diff[i] = 0;
   }
+  e_s1=0.0;
+  e_s2=0.0;
+  tdc2_all=0.0;
 
 }
 
@@ -98,16 +102,12 @@ void evt2root::Reset(){
 
 void evt2root::setParameters() { 
      
-  int i,j;
+  int i,j,k;
   Int_t tp_max[4];
   Int_t tp_min[4];
   //Make Random number for bin uncertainty
-  /*
-  Float_t rand[4];
-  for(i=0;i<4;i++){
-    rand[i] = rand->Rndm();
-  }
-  */
+     // + rand->Rndm();
+  
   // Loop Over Each Detector/Crystal
   for (i=0;i<12;i++){
     for (j=0;j<4;j++){
@@ -163,6 +163,38 @@ void evt2root::setParameters() {
     }
     neut_max_min[i] = neut_max[i] - neut_min[i];
   }
+
+  // TDC
+  int first_hit = 4096;
+
+  for (j=0;j<12;j++){
+    if (first_hit > tdc2[j+16] && tdc2[j+16] > 0){
+      first_hit = tdc2[j+16];
+    }
+  }
+  
+  tdc2_all = (Float_t)first_hit;
+
+  for (j=0;j<12;j++){ 
+    tdc2_diff[j]=(Int_t)((Float_t)tdc2[j+16]-(Float_t)first_hit + 1000.0 + rand->Rndm());
+  }
+
+
+  // Si 
+  float si_demax = 100;
+  float si_emax = 100;
+
+  for (k=0; k<16; k++){
+    if (si_demax < adc1[k]){
+      si_demax = adc1[k];
+      e_s1 = si_demax;
+    } 
+    if (si_emax < adc2[k]){
+      si_emax = adc2[k];
+      e_s2 = si_emax;
+    }
+  }
+
  
 
 }
@@ -264,7 +296,13 @@ int evt2root::run() {
   DataTree->Branch("neut_min", &neut_min);
   DataTree->Branch("neut_max_min", &neut_max_min);
   DataTree->Branch("neut_pos_sum", &neut_pos_sum);
-  
+
+  DataTree->Branch("e_s1", &e_s1, "e_s1/F");
+  DataTree->Branch("e_s2", &e_s2, "e_s2/F");
+
+  DataTree->Branch("tdc2_all", &tdc2_all,"tdc2_all/F");
+  DataTree->Branch("tdc2_diff",&tdc2_diff);
+
   string evtName; 
 
   while (evtListFile >> evtName) {
