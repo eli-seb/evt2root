@@ -144,9 +144,11 @@ Bool_t Parameters::operator() (const Address_t pEvent,
   //  double E_S1=60.0, E_S2=60.0;
 
   //  loop over crystals to subtract first hit from all times;
-    double si_demax=100;
+   double si_demax=100;
    double si_emax=100;
+   //e_s1 corresponds to delta E
    e_s1=0.0;
+   //e_s2 corresponds to E
    e_s2=0.0;
    ede_sum=0;
    ede_sum_ic=0;
@@ -175,7 +177,7 @@ Bool_t Parameters::operator() (const Address_t pEvent,
     }
   } 
    
-for (k=0; k<32; k++){
+  for (k=0; k<32; k++){
   if (adc3_values[k].isValid() && adc3_values[k]>50){
     de_pos_ic=adc3_values[k];
    }
